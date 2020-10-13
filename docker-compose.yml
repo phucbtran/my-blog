@@ -1,39 +1,66 @@
 version: '3'
 services:
 
-  # The Application
+  #PHP Service
   app:
     build:
-      context: ./docker/
-      dockerfile: app.dockerfile
-    container_name: my_blog_app
-    working_dir: /var/www
-    volumes:
-      - ./:/var/www/
-
-  # The Web Server
-  web:
-    build:
-      context: ./docker/
-      dockerfile: web.dockerfile
-    container_name: my_blog_web
-    working_dir: /var/www
-    ports:
-      - 8080:80
-
-  # The Database
-  database:
-    image: mysql:5.6
-    container_name: my_blog_db
-    volumes:
-      - dbdata:/var/lib/mysql
+      context: ./docker
+      dockerfile: Dockerfile
+    image: eoponda/app
+    container_name: app
+    restart: unless-stopped
+    tty: true
     environment:
-      - "MYSQL_DATABASE=my_blog"
-      - "MYSQL_USER=root"
-      - "MYSQL_PASSWORD=phucb1506"
-      - "MYSQL_ROOT_PASSWORD=phucb1506"
-    ports:
-      - "3309:3306"
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
 
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+
+  #MySQL Service
+  db:
+    image: mysql:5.7.22
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: my_blog_db
+      MYSQL_USER: phucb
+      MYSQL_PASSWORD: phucb1506
+      MYSQL_ROOT_PASSWORD: phucb1506
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./docker/mysql/my.conf:/etc/mysql/my.conf
+    networks:
+      - app-network
+
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
+#Volumes
 volumes:
   dbdata:
+    driver: local
